@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS folders (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     parent_id TEXT REFERENCES folders(id) ON DELETE CASCADE,
+    sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -44,9 +45,13 @@ def ensure_data_dir() -> Path:
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    columns = {row[1] for row in conn.execute("PRAGMA table_info(saved_queries)")}
-    if "tags" not in columns:
+    saved_columns = {row[1] for row in conn.execute("PRAGMA table_info(saved_queries)")}
+    if "tags" not in saved_columns:
         conn.execute("ALTER TABLE saved_queries ADD COLUMN tags TEXT DEFAULT '[]'")
+
+    folder_columns = {row[1] for row in conn.execute("PRAGMA table_info(folders)")}
+    if "sort_order" not in folder_columns:
+        conn.execute("ALTER TABLE folders ADD COLUMN sort_order INTEGER DEFAULT 0")
 
 
 def init_db() -> None:

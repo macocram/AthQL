@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import re
+import csv
+import io
 from typing import Any
 from urllib.parse import urlparse
 
@@ -110,22 +111,23 @@ def _fetch_preview_from_s3(execution_id: str, limit: int) -> dict[str, Any]:
     s3 = get_s3_client()
     obj = s3.get_object(Bucket=bucket, Key=key)
     body = obj["Body"].read().decode("utf-8")
-    lines = body.splitlines()
-    if not lines:
+    
+    reader = csv.reader(io.StringIO(body))
+    try:
+        headers = next(reader)
+    except StopIteration:
         return {"columns": [], "rows": [], "row_count": 0}
 
-    headers = _parse_csv_line(lines[0])
     columns = [{"name": h, "type": "string"} for h in headers]
     rows: list[dict[str, str]] = []
-    for line in lines[1 : limit + 1]:
-        values = _parse_csv_line(line)
-        rows.append(dict(zip(headers, values)))
+    for _ in range(limit):
+        try:
+            row = next(reader)
+            rows.append(dict(zip(headers, row)))
+        except StopIteration:
+            break
 
     return {"columns": columns, "rows": rows, "row_count": len(rows)}
-
-
-def _parse_csv_line(line: str) -> list[str]:
-    return [part.strip('"') for part in re.findall(r'"(?:[^"]|"")*"|[^,]+', line)]
 
 
 def generate_download_url(execution_id: str, expires_in: int = 3600) -> str:

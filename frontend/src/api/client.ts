@@ -24,7 +24,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  health: () => request<{ status: string }>("/health"),
+  health: () => request<{ status: string; version: string }>("/health"),
   profile: () =>
     request<{
       profile: string;
@@ -93,6 +93,11 @@ export const api = {
   folders: () => request<Folder[]>("/queries/folders"),
   createFolder: (body: { name: string; parent_id?: string | null }) =>
     request<Folder>("/queries/folders", { method: "POST", body: JSON.stringify(body) }),
+  reorderFolders: (folderIds: string[]) =>
+    request<{ status: string }>("/queries/folders/reorder", {
+      method: "POST",
+      body: JSON.stringify({ folder_ids: folderIds }),
+    }),
   storageStats: () => request<StorageStats>("/settings/storage"),
   storageCleanup: (body: { action: StorageCleanupAction; days?: number; keep?: number }) =>
     request<StorageCleanupResult>("/settings/storage/cleanup", {

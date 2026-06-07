@@ -4,12 +4,15 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 export type ThemeMode = "light" | "dark";
 
 const STORAGE_KEY = "athql-theme";
+const EDITOR_THEME_STORAGE_KEY = "athql-editor-theme";
 
 interface ThemeContextValue {
   mode: ThemeMode;
   isDark: boolean;
   setMode: (mode: ThemeMode) => void;
   toggle: () => void;
+  editorTheme: string;
+  setEditorTheme: (theme: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -116,10 +119,28 @@ function buildAntTheme(mode: ThemeMode) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(readInitialMode);
+  const [editorTheme, setEditorThemeState] = useState<string>(() => {
+    const saved = localStorage.getItem(EDITOR_THEME_STORAGE_KEY);
+    if (saved) return saved;
+    const initialMode = readInitialMode();
+    return initialMode === "dark" ? "vs-dark" : "vs";
+  });
+
+  const setEditorTheme = (themeName: string) => {
+    setEditorThemeState(themeName);
+    localStorage.setItem(EDITOR_THEME_STORAGE_KEY, themeName);
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", mode);
     localStorage.setItem(STORAGE_KEY, mode);
+
+    const isDarkTheme = ["vs-dark", "cobalt", "monokai", "solarized-dark"].includes(editorTheme);
+    if (mode === "light" && isDarkTheme) {
+      setEditorTheme("vs");
+    } else if (mode === "dark" && !isDarkTheme) {
+      setEditorTheme("vs-dark");
+    }
   }, [mode]);
 
   const toggle = () => setMode((current) => (current === "light" ? "dark" : "light"));
@@ -127,8 +148,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const antTheme = useMemo(() => buildAntTheme(mode), [mode]);
 
   const value = useMemo(
-    () => ({ mode, isDark: mode === "dark", setMode, toggle }),
-    [mode],
+    () => ({
+      mode,
+      isDark: mode === "dark",
+      setMode,
+      toggle,
+      editorTheme,
+      setEditorTheme,
+    }),
+    [mode, editorTheme],
   );
 
   return (

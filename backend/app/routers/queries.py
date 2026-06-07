@@ -77,12 +77,17 @@ class Folder(BaseModel):
     id: str
     name: str
     parent_id: str | None
+    sort_order: int = 0
     created_at: str
 
 
 class FolderCreate(BaseModel):
     name: str
     parent_id: str | None = None
+
+
+class ReorderFoldersRequest(BaseModel):
+    folder_ids: list[str]
 
 
 def _row_to_saved_query(row: sqlite3.Row) -> SavedQuery:
@@ -304,7 +309,7 @@ def update_saved_query(query_id: str, body: SavedQueryUpdate):
 def list_folders():
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT id, name, parent_id, created_at FROM folders ORDER BY name"
+            "SELECT id, name, parent_id, sort_order, created_at FROM folders ORDER BY sort_order, name"
         ).fetchall()
     return [Folder(**dict(row)) for row in rows]
 
@@ -314,12 +319,26 @@ def create_folder(body: FolderCreate):
     folder_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
     with get_connection() as conn:
+        max_order = conn.execute("SELECT max(sort_order) FROM folders").fetchone()[0]
+        next_order = (max_order or 0) + 1
         conn.execute(
-            "INSERT INTO folders (id, name, parent_id, created_at) VALUES (?, ?, ?, ?)",
-            (folder_id, body.name, body.parent_id, now),
+            "INSERT INTO folders (id, name, parent_id, sort_order, created_at) VALUES (?, ?, ?, ?, ?)",
+            (folder_id, body.name, body.parent_id, next_order, now),
         )
         conn.commit()
-    return Folder(id=folder_id, name=body.name, parent_id=body.parent_id, created_at=now)
+    return Folder(id=folder_id, name=body.name, parent_id=body.parent_id, sort_order=next_order, created_at=now)
+
+
+@router.post("/folders/reorder")
+def reorder_folders(body: ReorderFoldersRequest):
+    with get_connection() as conn:
+        for index, folder_id in enumerate(body.folder_ids):
+            conn.execute(
+                "UPDATE folders SET sort_order = ? WHERE id = ?",
+                (index, folder_id),
+            )
+        conn.commit()
+    return {"status": "ok"}
 
 
 @router.get("/{execution_id}/status")

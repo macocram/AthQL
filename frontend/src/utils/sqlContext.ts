@@ -53,10 +53,10 @@ export interface DotContext {
 
 export function parseDotContext(lineText: string, column: number): DotContext | null {
   const before = lineText.slice(0, column - 1);
-  const match = before.match(/(?:^|[\s,(\[+])([`"]?)([\w.]+)\2\.([`]?)([\w]*)$/);
+  const match = before.match(/(?:^|[\s,(\[+])([`"]?)([\w.]+)\1\.([`]?)([\w]*)$/);
   if (!match) return null;
 
-  const tableRef = match[3];
+  const tableRef = match[2];
   const columnPrefix = match[4] ?? "";
   const dotAt = before.lastIndexOf(".");
   const replaceStartColumn = dotAt + 2;

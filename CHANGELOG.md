@@ -4,6 +4,32 @@ All notable changes to AthQL are documented here. Version numbers follow [SemVer
 
 Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-06-08
+
+UI polish and saved-query organization improvements.
+
+### Added
+
+- **Collapsible sidebar** — icon strip when collapsed; expand to the last active tab
+- **About panel** — app version from `/api/health`, links to docs site and GitHub
+- **SQL editor themes** — VS Dark/Light plus Cobalt, Monokai, Solarized Dark, and GitHub Light (persisted per browser)
+- **Draggable editor/results split** — resize the results pane with a drag handle
+- **Empty results state** — hint to run with Cmd/Ctrl+Enter before the first query
+- **Folder reorder** — drag-and-drop saved-query folders; new `POST /api/queries/folders/reorder` API
+- **Loading splash** — branded placeholder while the React app boots
+
+### Changed
+
+- Saved-query folders default to **expanded**; order follows user-defined `sort_order` instead of alphabetical
+- Query history SQL snippets use the same truncated preview styling as saved queries
+- Dark-mode tag pill colors softened for readability
+- Sidebar footer with author link (`@amit3200`)
+
+### Fixed
+
+- Athena CSV result preview now uses Python's `csv` module (handles quoted commas and escapes correctly)
+- SQL autocomplete dot-context regex (`table.column`) matching
+
 ## [1.0.0] - 2026-06-07
 
 First stable release — local-first Athena query manager ready for daily use.
@@ -19,4 +45,5 @@ First stable release — local-first Athena query manager ready for daily use.
 - Structured AWS error handling and opt-in debug logging (`ATHQL_DEBUG=1`)
 - GitHub Pages site and README documentation
 
+[1.1.0]: https://github.com/Amit3200/AthQL/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Amit3200/AthQL/releases/tag/v1.0.0

@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Input, Modal, Popconfirm, Spin, Typography } from "antd";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { api } from "../api/client";
 import { useNotify } from "../hooks/useNotify";
@@ -28,7 +28,9 @@ export function SavedQueriesPanel({ onLoadQuery }: SavedQueriesPanelProps) {
   const [newFolderName, setNewFolderName] = useState("");
   const [searchText, setSearchText] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const draggedFolderIdRef = useRef<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
 
   const foldersQuery = useQuery({ queryKey: ["folders"], queryFn: api.folders });
   const tagsQuery = useQuery({ queryKey: ["saved-query-tags"], queryFn: api.savedQueryTags });
@@ -53,6 +55,29 @@ export function SavedQueriesPanel({ onLoadQuery }: SavedQueriesPanelProps) {
     onError: (err: Error) => message.error(err.message),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: (folderIds: string[]) => api.reorderFolders(folderIds),
+    onMutate: async (newOrderIds) => {
+      await queryClient.cancelQueries({ queryKey: ["folders"] });
+      const previousFolders = queryClient.getQueryData<Folder[]>(["folders"]);
+      if (previousFolders) {
+        const foldersMap = new Map(previousFolders.map((f) => [f.id, f]));
+        const optimisticallyReordered = newOrderIds.map((id) => foldersMap.get(id)!).filter(Boolean);
+        queryClient.setQueryData(["folders"], optimisticallyReordered);
+      }
+      return { previousFolders };
+    },
+    onError: (err, _newOrderIds, context) => {
+      if (context?.previousFolders) {
+        queryClient.setQueryData(["folders"], context.previousFolders);
+      }
+      message.error(err.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
+    },
+  });
+
   const deleteSaved = useMutation({
     mutationFn: api.deleteSavedQuery,
     onSuccess: () => {
@@ -64,12 +89,46 @@ export function SavedQueriesPanel({ onLoadQuery }: SavedQueriesPanelProps) {
   });
 
   const toggleFolder = (folderKey: string) => {
-    setCollapsedFolders((prev) => {
+    setExpandedFolders((prev) => {
       const next = new Set(prev);
       if (next.has(folderKey)) next.delete(folderKey);
       else next.add(folderKey);
       return next;
     });
+  };
+
+  const handleDragStart = (e: React.DragEvent, folderId: string) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", folderId);
+    draggedFolderIdRef.current = folderId;
+  };
+
+  const handleDragOver = (e: React.DragEvent, folderId: string) => {
+    const draggedId = draggedFolderIdRef.current;
+    if (draggedId && draggedId !== folderId && folderId !== "uncategorized" && draggedId !== "uncategorized") {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverFolderId(folderId);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    setDragOverFolderId(null);
+    const sourceId = e.dataTransfer.getData("text/plain") || draggedFolderIdRef.current;
+    draggedFolderIdRef.current = null;
+    if (!sourceId || sourceId === targetId || targetId === "uncategorized" || sourceId === "uncategorized") return;
+
+    const currentFolders = foldersQuery.data ?? [];
+    const sourceIndex = currentFolders.findIndex((f) => f.id === sourceId);
+    const targetIndex = currentFolders.findIndex((f) => f.id === targetId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+
+    const reordered = Array.from(currentFolders);
+    const [removed] = reordered.splice(sourceIndex, 1);
+    reordered.splice(targetIndex, 0, removed);
+
+    reorderMutation.mutate(reordered.map((f) => f.id));
   };
 
   const loadQuery = (item: SavedQuery) => {
@@ -135,13 +194,34 @@ export function SavedQueriesPanel({ onLoadQuery }: SavedQueriesPanelProps) {
       ) : (
         <div className="athql-saved-list">
           {grouped.sections.map((section) => {
-            const expanded = !collapsedFolders.has(section.key);
+            const expanded = expandedFolders.has(section.key);
+            const isUncategorized = section.key === "uncategorized";
             return (
               <section key={section.key} className="athql-saved-folder">
-                <button
-                  type="button"
-                  className="athql-saved-folder-header"
+                <div
+                  role="button"
+                  tabIndex={0}
+                  draggable={!isUncategorized}
+                  className={`athql-saved-folder-header ${
+                    dragOverFolderId === section.key ? "athql-drag-over" : ""
+                  }`}
+                  onDragStart={(e) => handleDragStart(e, section.key)}
+                  onDragEnd={() => {
+                    draggedFolderIdRef.current = null;
+                    setDragOverFolderId(null);
+                  }}
+                  onDragOver={(e) => handleDragOver(e, section.key)}
+                  onDragLeave={() => {
+                    setDragOverFolderId((curr) => (curr === section.key ? null : curr));
+                  }}
+                  onDrop={(e) => handleDrop(e, section.key)}
                   onClick={() => toggleFolder(section.key)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleFolder(section.key);
+                    }
+                  }}
                 >
                   <span className="athql-saved-folder-chevron">
                     {expanded ? <DownOutlined /> : <RightOutlined />}
@@ -149,7 +229,7 @@ export function SavedQueriesPanel({ onLoadQuery }: SavedQueriesPanelProps) {
                   <FolderOutlined className="athql-saved-folder-icon" />
                   <span className="athql-saved-folder-name">{section.label}</span>
                   <span className="athql-saved-folder-count">{section.queries.length}</span>
-                </button>
+                </div>
                 {expanded && (
                   <div className="athql-saved-folder-body">
                     {section.queries.length === 0 ? (
@@ -263,13 +343,11 @@ function groupSavedQueries(folders: Folder[], queries: SavedQuery[]): { sections
   const sortQueries = (items: SavedQuery[]) =>
     [...items].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
-  const sections: SavedSection[] = [...folders]
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((folder) => ({
-      key: folder.id,
-      label: folder.name,
-      queries: sortQueries(byFolder.get(folder.id) ?? []),
-    }));
+  const sections: SavedSection[] = folders.map((folder) => ({
+    key: folder.id,
+    label: folder.name,
+    queries: sortQueries(byFolder.get(folder.id) ?? []),
+  }));
 
   if (uncategorized.length > 0) {
     sections.push({

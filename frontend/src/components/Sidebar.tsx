@@ -1,13 +1,16 @@
-import { DatabaseOutlined, FolderOutlined, HistoryOutlined, SettingOutlined } from "@ant-design/icons";
+import { DatabaseOutlined, FolderOutlined, HistoryOutlined, InfoCircleOutlined, SettingOutlined } from "@ant-design/icons";
 import { Tabs } from "antd";
 
 import { CatalogTree } from "./CatalogTree";
 import { QueryHistoryPanel } from "./QueryHistoryPanel";
 import { SavedQueriesPanel } from "./SavedQueriesPanel";
 import { SettingsPanel } from "./SettingsPanel";
+import { AboutPanel } from "./AboutPanel";
 import type { CatalogContext, LoadedQuery } from "../types";
 
 interface SidebarProps {
+  activeKey: string;
+  onChange: (key: string) => void;
   onInsertText: (text: string) => void;
   onContextChange: (context: CatalogContext) => void;
   onLoadQuery: (query: LoadedQuery) => void;
@@ -16,6 +19,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({
+  activeKey,
+  onChange,
   onInsertText,
   onContextChange,
   onLoadQuery,
@@ -24,7 +29,8 @@ export function Sidebar({
 }: SidebarProps) {
   return (
     <Tabs
-      defaultActiveKey="catalog"
+      activeKey={activeKey}
+      onChange={onChange}
       size="small"
       style={{ height: "100%" }}
       tabBarStyle={{ margin: "0 12px" }}
@@ -55,6 +61,11 @@ export function Sidebar({
           key: "settings",
           label: <SettingOutlined />,
           children: <SettingsPanel />,
+        },
+        {
+          key: "about",
+          label: <InfoCircleOutlined />,
+          children: <AboutPanel />,
         },
       ]}
     />

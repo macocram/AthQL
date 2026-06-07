@@ -70,7 +70,7 @@ function HistoryCard({ item, onLoad }: { item: HistoryEntry; onLoad: () => void 
         <span className="athql-history-time">{formatWhen(item.executed_at)}</span>
       </div>
 
-      <pre className="athql-history-sql">{item.sql_text.trim()}</pre>
+      <pre className="athql-history-sql athql-sql-preview">{item.sql_text.trim()}</pre>
 
       <div className="athql-history-card-footer">
         <span className="athql-history-stats">

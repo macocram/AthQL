@@ -1,7 +1,19 @@
-import { FormatPainterOutlined, PlayCircleOutlined, PlusOutlined, SaveOutlined, StopOutlined } from "@ant-design/icons";
+import {
+  DatabaseOutlined,
+  FolderOutlined,
+  FormatPainterOutlined,
+  HistoryOutlined,
+  InfoCircleOutlined,
+  MenuFoldOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  SaveOutlined,
+  SettingOutlined,
+  StopOutlined,
+} from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Layout, Select, Tabs, Typography } from "antd";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "./api/client";
 import { Logo } from "./components/Logo";
@@ -17,6 +29,7 @@ import { usePrefetchCompletions } from "./hooks/usePrefetchCompletions";
 import { useQueryExecution } from "./hooks/useQueryExecution";
 import { useSqlCompletions } from "./hooks/useSqlCompletions";
 import type { CatalogContext, LoadedQuery, QueryTab } from "./types";
+import { SQL_THEMES } from "./utils/sqlThemes";
 import { loadWorkspacePrefs, saveWorkspacePrefs } from "./utils/workspaceStorage";
 
 const { Sider, Content } = Layout;
@@ -43,7 +56,6 @@ function QueryPanel({
   completions,
   addTables,
   addColumns,
-  isDark,
 }: {
   tab: QueryTab;
   onUpdate: (patch: Partial<QueryTab>) => void;
@@ -52,11 +64,44 @@ function QueryPanel({
   completions: ReturnType<typeof useSqlCompletions>["completions"];
   addTables: ReturnType<typeof useSqlCompletions>["addTables"];
   addColumns: ReturnType<typeof useSqlCompletions>["addColumns"];
-  isDark: boolean;
 }) {
   const { message } = useNotify();
   const formatRef = useRef<(() => void) | null>(null);
+  const { editorTheme, setEditorTheme } = useTheme();
   const { status, isPolling, processed, isLoadingResults } = useQueryExecution(tab.executionId);
+  const [resultsHeight, setResultsHeight] = useState(42);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const startDrag = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const panel = document.querySelector(".athql-panel");
+      if (!panel) return;
+      const rect = panel.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
+      const percentage = 100 - (relativeY / rect.height) * 100;
+      if (percentage >= 15 && percentage <= 80) {
+        setResultsHeight(percentage);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
 
   const catalogsQuery = useQuery({
     queryKey: ["catalogs"],
@@ -150,9 +195,18 @@ function QueryPanel({
             </div>
           </div>
         </div>
-        <Typography.Text type="secondary" className="athql-toolbar-hint">
-          Cmd/Ctrl+Enter to run · Cmd/Ctrl+Shift+F to format
-        </Typography.Text>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Typography.Text type="secondary" className="athql-toolbar-hint" style={{ margin: 0 }}>
+            Cmd/Ctrl+Enter to run · Cmd/Ctrl+Shift+F to format
+          </Typography.Text>
+          <Select
+            size="small"
+            style={{ width: 160 }}
+            value={editorTheme}
+            onChange={setEditorTheme}
+            options={SQL_THEMES}
+          />
+        </div>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
         <SqlEditor
@@ -162,10 +216,13 @@ function QueryPanel({
           database={tab.database}
           onRun={runQuery}
           onFormatRef={formatRef}
-          isDark={isDark}
         />
       </div>
-      <div className="athql-results-pane" style={{ height: "42%", minHeight: 0 }}>
+      <div
+        className={`athql-pane-splitter ${isDragging ? "athql-pane-splitter--dragging" : ""}`}
+        onMouseDown={startDrag}
+      />
+      <div className="athql-results-pane" style={{ height: `${resultsHeight}%`, minHeight: 0 }}>
         <ResultsGrid
           status={status}
           processed={processed}
@@ -179,12 +236,13 @@ function QueryPanel({
 
 export default function App() {
   const queryClient = useQueryClient();
-  const { isDark } = useTheme();
   const { message } = useNotify();
   const { completions, addTables, addColumns } = useSqlCompletions();
   const [tabs, setTabs] = useState<QueryTab[]>(() => [newTab(1)]);
   const [activeKey, setActiveKey] = useState(() => tabs[0].key);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [activeSidebarTab, setActiveSidebarTab] = useState("catalog");
+  const [collapsed, setCollapsed] = useState(false);
   const nextTabNum = useRef(2);
 
   const activeTab = tabs.find((t) => t.key === activeKey);
@@ -241,28 +299,138 @@ export default function App() {
 
   return (
     <Layout style={{ height: "100vh" }}>
-      <Sider width={300} className="athql-sider">
-        <div className="athql-header">
-          <div className="athql-header-main">
-            <Logo size={32} />
-            <div>
-              <Typography.Title level={5} className="athql-header-title">
-                AthQL
-              </Typography.Title>
-              <div className="athql-header-subtitle">Athena Query Manager</div>
+      <Sider
+        width={300}
+        collapsedWidth={64}
+        collapsible
+        collapsed={collapsed}
+        trigger={null}
+        className="athql-sider"
+      >
+        {collapsed ? (
+          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <div className="athql-header" style={{ padding: "14px 0", justifyContent: "center" }}>
+              <div
+                onClick={() => setCollapsed(false)}
+                style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+                title="Expand Sidebar"
+              >
+                <Logo size={28} />
+              </div>
+            </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <div className="athql-collapsed-strip">
+                <button
+                  className={`athql-collapsed-item ${activeSidebarTab === "catalog" ? "athql-collapsed-item--active" : ""}`}
+                  onClick={() => {
+                    setActiveSidebarTab("catalog");
+                    setCollapsed(false);
+                  }}
+                  title="Catalog"
+                >
+                  <DatabaseOutlined />
+                </button>
+                <button
+                  className={`athql-collapsed-item ${activeSidebarTab === "saved" ? "athql-collapsed-item--active" : ""}`}
+                  onClick={() => {
+                    setActiveSidebarTab("saved");
+                    setCollapsed(false);
+                  }}
+                  title="Saved Queries"
+                >
+                  <FolderOutlined />
+                </button>
+                <button
+                  className={`athql-collapsed-item ${activeSidebarTab === "history" ? "athql-collapsed-item--active" : ""}`}
+                  onClick={() => {
+                    setActiveSidebarTab("history");
+                    setCollapsed(false);
+                  }}
+                  title="Query History"
+                >
+                  <HistoryOutlined />
+                </button>
+                <button
+                  className={`athql-collapsed-item ${activeSidebarTab === "settings" ? "athql-collapsed-item--active" : ""}`}
+                  onClick={() => {
+                    setActiveSidebarTab("settings");
+                    setCollapsed(false);
+                  }}
+                  title="Settings"
+                >
+                  <SettingOutlined />
+                </button>
+                <button
+                  className={`athql-collapsed-item ${activeSidebarTab === "about" ? "athql-collapsed-item--active" : ""}`}
+                  onClick={() => {
+                    setActiveSidebarTab("about");
+                    setCollapsed(false);
+                  }}
+                  title="About AthQL"
+                >
+                  <InfoCircleOutlined />
+                </button>
+              </div>
+            </div>
+            <div className="athql-sidebar-footer" style={{ padding: "12px 0", justifyContent: "center" }}>
+              <a
+                href="https://github.com/amit3200"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="athql-footer-link"
+                style={{ padding: "4px 8px", fontSize: "10px" }}
+              >
+                @A
+              </a>
             </div>
           </div>
-          <ThemeToggle />
-        </div>
-        <div style={{ height: "calc(100vh - 65px)" }}>
-          <Sidebar
-            onInsertText={insertIntoActive}
-            onContextChange={applyContextToActive}
-            onLoadQuery={loadQueryIntoActive}
-            onTablesLoaded={addTables}
-            onColumnsLoaded={addColumns}
-          />
-        </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <div className="athql-header">
+              <div className="athql-header-main">
+                <Logo size={32} />
+                <div>
+                  <Typography.Title level={5} className="athql-header-title">
+                    AthQL
+                  </Typography.Title>
+                  <div className="athql-header-subtitle">Athena Query Manager</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ThemeToggle />
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<MenuFoldOutlined />}
+                  onClick={() => setCollapsed(true)}
+                  style={{ color: "var(--athql-text-muted)" }}
+                />
+              </div>
+            </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <Sidebar
+                activeKey={activeSidebarTab}
+                onChange={setActiveSidebarTab}
+                onInsertText={insertIntoActive}
+                onContextChange={applyContextToActive}
+                onLoadQuery={loadQueryIntoActive}
+                onTablesLoaded={addTables}
+                onColumnsLoaded={addColumns}
+              />
+            </div>
+            <div className="athql-sidebar-footer">
+              CRAFTED BY{" "}
+              <a
+                href="https://github.com/amit3200"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="athql-footer-link"
+              >
+                @amit3200
+              </a>
+            </div>
+          </div>
+        )}
       </Sider>
       <Content className="athql-content" style={{ padding: 12 }}>
         <Tabs
@@ -298,7 +466,6 @@ export default function App() {
                 completions={completions}
                 addTables={addTables}
                 addColumns={addColumns}
-                isDark={isDark}
               />
             ),
           }))}

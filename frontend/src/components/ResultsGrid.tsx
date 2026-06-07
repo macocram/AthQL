@@ -1,5 +1,5 @@
 import { DownloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Table, Typography } from "antd";
+import { Alert, Button, Empty, Table, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -83,6 +83,21 @@ export function ResultsGrid({ status, processed, isLoading, executionId }: Resul
     );
   }
 
+  if (!status && !isLoading) {
+    return (
+      <div ref={gridRef} className="athql-results-grid" style={{ justifyContent: "center", alignItems: "center", height: "100%", background: "var(--athql-surface-subtle)" }}>
+        <Empty
+          description={
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              No query executed yet. Press <kbd style={{ padding: "2px 4px", background: "var(--athql-tag-bg)", border: "1px solid var(--athql-border)", borderRadius: 3, fontSize: 11, fontFamily: "monospace" }}>Cmd/Ctrl+Enter</kbd> to run.
+            </Typography.Text>
+          }
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      </div>
+    );
+  }
+
   return (
     <div ref={gridRef} className="athql-results-grid">
       {status && (
@@ -99,6 +114,7 @@ export function ResultsGrid({ status, processed, isLoading, executionId }: Resul
           )}
         </div>
       )}
+
       <div className="athql-results-table-wrap">
         <Table
           size="small"
