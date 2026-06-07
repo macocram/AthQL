@@ -154,7 +154,7 @@ function QueryPanel({
           Cmd/Ctrl+Enter to run · Cmd/Ctrl+Shift+F to format
         </Typography.Text>
       </div>
-      <div style={{ flex: 1, minHeight: 240 }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
         <SqlEditor
           value={tab.sql}
           onChange={(sql) => onUpdate({ sql })}
@@ -165,7 +165,7 @@ function QueryPanel({
           isDark={isDark}
         />
       </div>
-      <div className="athql-results-pane" style={{ height: "42%" }}>
+      <div className="athql-results-pane" style={{ height: "42%", minHeight: 0 }}>
         <ResultsGrid
           status={status}
           processed={processed}

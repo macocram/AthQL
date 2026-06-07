@@ -214,7 +214,7 @@ function SavedQueryCard({
         </div>
       </div>
 
-      <pre className="athql-history-sql">{query.sql_text.trim()}</pre>
+      <pre className="athql-history-sql athql-sql-preview">{query.sql_text.trim()}</pre>
 
       <div className="athql-history-card-footer athql-saved-card-footer">
         {query.database_context && (

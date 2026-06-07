@@ -1,7 +1,7 @@
 import { DownloadOutlined } from "@ant-design/icons";
 import { Alert, Button, Table, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "../api/client";
 import type { ProcessedResult } from "../workers/resultProcessor.worker";
@@ -22,6 +22,25 @@ function formatBytes(bytes?: number): string {
 }
 
 export function ResultsGrid({ status, processed, isLoading, executionId }: ResultsGridProps) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [scrollY, setScrollY] = useState(240);
+
+  useLayoutEffect(() => {
+    const node = gridRef.current;
+    if (!node) return;
+
+    const updateScrollHeight = () => {
+      const toolbar = node.querySelector(".athql-results-toolbar");
+      const toolbarHeight = toolbar?.getBoundingClientRect().height ?? 0;
+      setScrollY(Math.max(120, node.clientHeight - toolbarHeight));
+    };
+
+    updateScrollHeight();
+    const observer = new ResizeObserver(updateScrollHeight);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [status?.status, processed?.dataSource.length, isLoading]);
+
   const columns: ColumnsType<Record<string, unknown>> = useMemo(() => {
     if (!processed) return [];
     return processed.columns.map((col) => ({
@@ -65,7 +84,7 @@ export function ResultsGrid({ status, processed, isLoading, executionId }: Resul
   }
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <div ref={gridRef} className="athql-results-grid">
       {status && (
         <div className="athql-results-toolbar">
           <Typography.Text type="secondary">
@@ -80,17 +99,17 @@ export function ResultsGrid({ status, processed, isLoading, executionId }: Resul
           )}
         </div>
       )}
-      <Table
-        size="small"
-        loading={isLoading}
-        columns={columns}
-        dataSource={processed?.dataSource ?? []}
-        rowKey="__rowKey"
-        pagination={false}
-        scroll={{ x: "max-content", y: "calc(100vh - 420px)" }}
-        virtual
-        style={{ flex: 1 }}
-      />
+      <div className="athql-results-table-wrap">
+        <Table
+          size="small"
+          loading={isLoading}
+          columns={columns}
+          dataSource={processed?.dataSource ?? []}
+          rowKey="__rowKey"
+          pagination={false}
+          scroll={{ x: "max-content", y: scrollY }}
+        />
+      </div>
     </div>
   );
 }
