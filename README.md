@@ -2,7 +2,9 @@
 
 A local-first Amazon Athena query manager for developers. Runs on your machine using `~/.aws/credentials`, reads settings from `config/athql.env`, and stores saved queries and history in `~/.athql/metadata.db`.
 
-**Website:** [amit3200.github.io/AthQL](https://amit3200.github.io/AthQL/) · **Repo:** [github.com/Amit3200/AthQL](https://github.com/Amit3200/AthQL)
+**Website:** [amit3200.github.io/AthQL](https://amit3200.github.io/AthQL/) · **Repo:** [github.com/Amit3200/AthQL](https://github.com/Amit3200/AthQL) · **Releases:** [v1.0.0](https://github.com/Amit3200/AthQL/releases)
+
+[![Release](https://img.shields.io/github/v/release/Amit3200/AthQL?label=release)](https://github.com/Amit3200/AthQL/releases)
 
 ## Screenshots
 
@@ -331,6 +333,8 @@ AthQL/
 │   ├── index.html             GitHub Pages landing site
 │   ├── assets/                Site CSS, JS, favicon
 │   └── screenshots/           README & site screenshots
+├── VERSION                    Single source of truth for app version (semver)
+├── CHANGELOG.md               Release notes
 ├── backend/
 │   ├── app/
 │   │   ├── main.py            FastAPI entrypoint
@@ -343,6 +347,44 @@ AthQL/
 │   └── src/                   React UI
 └── scripts/dev.sh             Loads athql.env and starts both servers
 ```
+
+## Releases & versioning
+
+AthQL uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH` (e.g. `1.0.0`).
+
+| What | Where |
+|------|--------|
+| **Source of truth** | [`VERSION`](VERSION) at repo root |
+| **Backend / OpenAPI** | Reads `VERSION` via [`backend/app/version.py`](backend/app/version.py); exposed at `GET /api/health` |
+| **Frontend** | `frontend/package.json` — kept in sync with `VERSION` |
+| **Changelog** | [`CHANGELOG.md`](CHANGELOG.md) — user-facing notes per release |
+| **GitHub Release** | Tag `v1.0.0` on the commit you ship; attach notes from the changelog |
+
+### Cut a release (manual)
+
+```bash
+# 1. Bump VERSION (e.g. 1.0.0 → 1.1.0), edit CHANGELOG.md, then sync:
+./scripts/sync-version.sh
+
+# 2. Commit, tag, and push
+git add VERSION CHANGELOG.md frontend/package.json frontend/package-lock.json
+git commit -m "Release v1.1.0"
+git tag -a v1.1.0 -m "v1.1.0"
+git push origin main --tags
+
+# 3. Create the GitHub Release (UI or gh CLI)
+gh release create v1.1.0 --title "v1.1.0" --notes-file CHANGELOG.md
+```
+
+**Tag convention:** always prefix with `v` (`v1.0.0`). The docs site and README badge read from GitHub Releases API; until the first release exists, the site falls back to the `data-fallback` in `docs/index.html`.
+
+**What counts as a bump:**
+
+- **Patch** (`1.0.x`) — bug fixes, docs, small UI tweaks
+- **Minor** (`1.x.0`) — new features, backward compatible
+- **Major** (`x.0.0`) — breaking changes (config path changes, API removals, etc.)
+
+There is no PyPI/npm publish yet — releases are **git tags + GitHub Release notes** for people cloning or checking compatibility.
 
 ## License
 
@@ -357,7 +399,7 @@ The project site lives in [`docs/`](docs/) and is designed for [GitHub Pages](ht
 3. Choose branch **`main`** and folder **`/docs`**
 4. Save — the site publishes at `https://amit3200.github.io/AthQL/`
 
-The landing page pulls live **stars, forks, open issues, and last push** from the GitHub API. AthQL is clone-and-run (not published to PyPI/npm yet), so there is no package download counter — the site is honest about that.
+The landing page pulls live **stars, forks, open issues, last push, and latest release** from the GitHub API. AthQL is clone-and-run (not published to PyPI/npm yet), so there is no package download counter — the site is honest about that.
 
 To preview locally:
 

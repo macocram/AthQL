@@ -44,6 +44,23 @@ async function loadRepoStats() {
   }
 }
 
+async function loadLatestRelease() {
+  const releaseNode = document.getElementById("stat-release");
+  const linkNode = document.getElementById("stat-release-link");
+  const fallback = releaseNode?.getAttribute("data-fallback") ?? "—";
+
+  try {
+    const response = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
+    if (!response.ok) throw new Error(`GitHub API ${response.status}`);
+    const data = await response.json();
+    const label = (data.tag_name ?? fallback).replace(/^v/i, "");
+    setStat("stat-release", label);
+    if (linkNode && data.html_url) linkNode.href = data.html_url;
+  } catch {
+    setStat("stat-release", fallback);
+  }
+}
+
 function setupNav() {
   const toggle = document.querySelector(".nav-toggle");
   const links = document.querySelector(".nav-links");
@@ -153,6 +170,7 @@ function setupSqlMockup() {
 
 document.addEventListener("DOMContentLoaded", () => {
   loadRepoStats();
+  loadLatestRelease();
   setupNav();
   setupCopyButtons();
   setupSqlMockup();

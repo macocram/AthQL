@@ -370,6 +370,16 @@ code {
   color: var(--text-strong);
 }
 
+.meta-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.meta-link:hover,
+.meta-link:focus-visible {
+  color: var(--accent);
+}
+
 .meta-note {
   margin: 12px 0 0;
   font-size: 0.78rem;
