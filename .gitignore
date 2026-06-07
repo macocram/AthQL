@@ -150,6 +150,7 @@ activemq-data/
 # Environments
 .env
 .envrc
+config/athql.env
 .venv
 env/
 venv/
@@ -216,3 +217,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node
+node_modules/
+dist/
+frontend/dist/
