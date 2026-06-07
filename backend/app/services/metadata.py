@@ -8,6 +8,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 from app.config import settings
+from app.errors import log_aws_error
 
 
 @functools.lru_cache(maxsize=1)
@@ -92,8 +93,8 @@ def get_workgroup_output_location() -> str | None:
         output_location = result_config.get("OutputLocation")
         if output_location:
             return output_location
-    except ClientError:
-        pass
+    except ClientError as exc:
+        log_aws_error(exc, context="resolve workgroup output location")
 
     # The Athena console often passes an output location per query without saving it on
     # the workgroup. Re-use the prefix from a recent successful query in this workgroup.
@@ -106,7 +107,8 @@ def uses_managed_query_results() -> bool:
         result_config = response["WorkGroup"]["Configuration"].get("ResultConfiguration", {})
         managed = result_config.get("ManagedQueryResultsConfiguration") or {}
         return bool(managed.get("Enabled"))
-    except ClientError:
+    except ClientError as exc:
+        log_aws_error(exc, context="read managed query results setting")
         return False
 
 
@@ -125,7 +127,8 @@ def _discover_output_location_from_history() -> str | None:
             if not output_location:
                 continue
             return _output_prefix(output_location)
-    except ClientError:
+    except ClientError as exc:
+        log_aws_error(exc, context="discover output location from query history")
         return None
     return None
 
@@ -188,8 +191,8 @@ def list_catalogs() -> list[dict[str, str]]:
                     "type": catalog.get("Type", "GLUE"),
                 }
             )
-    except ClientError:
-        pass
+    except ClientError as exc:
+        log_aws_error(exc, context="list Glue catalogs")
 
     if not catalogs:
         catalogs = [{"name": "AwsDataCatalog", "type": "GLUE"}]
@@ -247,10 +250,7 @@ def list_columns(catalog: str, database: str, table: str) -> list[dict[str, str]
 
     client = get_glue_client()
     catalog_id = resolve_catalog_id(catalog)
-    try:
-        response = client.get_table(CatalogId=catalog_id, DatabaseName=database, Name=table)
-    except ClientError as exc:
-        raise ValueError(f"Table not found: {database}.{table}") from exc
+    response = client.get_table(CatalogId=catalog_id, DatabaseName=database, Name=table)
 
     table_meta = response["Table"]
     columns: list[dict[str, str]] = []

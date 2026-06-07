@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     s3_staging_dir: Optional[str] = None
     preview_row_limit: int = 200
     metadata_cache_ttl_seconds: int = 900
+    debug: bool = False
 
     @property
     def data_dir(self) -> Path:

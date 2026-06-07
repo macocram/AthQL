@@ -1,10 +1,15 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from botocore.exceptions import ClientError
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
+from app.errors import aws_client_error_handler, unhandled_exception_handler
+from app.logging_setup import configure_logging
 from app.routers import metadata, queries, settings as settings_router
+
+configure_logging()
 
 
 @asynccontextmanager
@@ -14,6 +19,9 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="AthQL", version="0.1.0", lifespan=lifespan)
+
+app.add_exception_handler(ClientError, aws_client_error_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.add_middleware(
     CORSMiddleware,

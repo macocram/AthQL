@@ -114,10 +114,7 @@ def _resolve_folder_id(conn, folder_id: str | None, folder_name: str | None) -> 
 
 @router.post("/execute", response_model=ExecuteResponse)
 def execute_query(body: ExecuteRequest):
-    try:
-        execution_id = athena_service.start_query(body.sql, body.database, body.catalog)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    execution_id = athena_service.start_query(body.sql, body.database, body.catalog)
 
     with get_connection() as conn:
         conn.execute(
@@ -327,10 +324,7 @@ def create_folder(body: FolderCreate):
 
 @router.get("/{execution_id}/status")
 def query_status(execution_id: str):
-    try:
-        status = athena_service.get_query_status(execution_id)
-    except Exception as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    status = athena_service.get_query_status(execution_id)
 
     with get_connection() as conn:
         conn.execute(
@@ -358,26 +352,17 @@ def query_results(execution_id: str, limit: int = 200):
     if status["status"] != "SUCCEEDED":
         raise HTTPException(status_code=400, detail=f"Query not ready: {status['status']}")
 
-    try:
-        return athena_service.fetch_preview_rows(execution_id, limit=limit)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return athena_service.fetch_preview_rows(execution_id, limit=limit)
 
 
 @router.get("/{execution_id}/download-url")
 def download_url(execution_id: str):
-    try:
-        url = athena_service.generate_download_url(execution_id)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    url = athena_service.generate_download_url(execution_id)
     return {"url": url}
 
 
 @router.post("/{execution_id}/cancel")
 def cancel_query(execution_id: str):
-    try:
-        athena_service.cancel_query(execution_id)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    athena_service.cancel_query(execution_id)
     return {"status": "CANCELLED"}
 

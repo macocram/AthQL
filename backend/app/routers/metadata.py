@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.services import metadata as metadata_service
 
@@ -12,34 +12,22 @@ def active_profile():
 
 @router.get("/catalogs")
 def catalogs():
-    try:
-        return metadata_service.list_catalogs()
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return metadata_service.list_catalogs()
 
 
 @router.get("/catalogs/{catalog}/databases")
 def databases(catalog: str):
-    try:
-        return metadata_service.list_databases(catalog)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return metadata_service.list_databases(catalog)
 
 
 @router.get("/catalogs/{catalog}/databases/{database}/tables")
 def tables(catalog: str, database: str):
-    try:
-        return metadata_service.list_tables(catalog, database)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return metadata_service.list_tables(catalog, database)
 
 
 @router.get("/catalogs/{catalog}/databases/{database}/tables/{table}/columns")
 def columns(catalog: str, database: str, table: str):
-    try:
-        return metadata_service.list_columns(catalog, database, table)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return metadata_service.list_columns(catalog, database, table)
 
 
 @router.post("/refresh")

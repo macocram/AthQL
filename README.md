@@ -24,6 +24,116 @@ config/athql.env   Local AWS profile, region, workgroup (gitignored)
 - Node.js 20+
 - AWS credentials for a profile that can use Athena and Glue (`~/.aws/credentials`)
 - An Athena workgroup in your target region (often `primary`)
+- IAM permissions listed below (or equivalent managed policies)
+
+## AWS IAM permissions
+
+AthQL calls AWS APIs directly from your local machine using the configured profile. The IAM principal needs permissions for **catalog browsing**, **query execution**, and **result access**.
+
+Replace `REGION`, `ACCOUNT_ID`, `WORKGROUP`, and bucket names with your values.
+
+### By feature
+
+| AthQL feature | AWS service | IAM actions |
+|---------------|-------------|-------------|
+| Profile / account detection | STS | `sts:GetCallerIdentity` |
+| Catalog explorer (databases, tables, columns) | Glue | `glue:GetCatalogs`, `glue:GetDatabases`, `glue:GetTables`, `glue:GetTable` |
+| Workgroup / output location detection | Athena | `athena:GetWorkGroup`, `athena:ListQueryExecutions`, `athena:GetQueryExecution` |
+| Run / cancel / poll queries | Athena | `athena:StartQueryExecution`, `athena:StopQueryExecution`, `athena:GetQueryExecution` |
+| Results preview in UI | Athena | `athena:GetQueryResults` |
+| Full CSV download | S3 | `s3:GetObject` on the Athena results bucket (via pre-signed URL) |
+| Athena writing query results | S3 | `s3:PutObject`, `s3:GetObject`, `s3:ListBucket`, `s3:GetBucketLocation` on the **output** bucket/prefix |
+
+`glue:GetCatalogs` is optional — if denied, AthQL falls back to `AwsDataCatalog`.
+
+### Querying your data (separate from AthQL itself)
+
+Running `SELECT … FROM my_db.my_table` also requires whatever your tables need in Athena:
+
+- **Glue:** `glue:GetDatabase`, `glue:GetTable`, `glue:GetPartitions` (and sometimes `glue:GetTables`) on the databases/tables you query
+- **S3:** `s3:GetObject` (and often `s3:ListBucket`) on the **data** buckets backing those tables
+- **Lake Formation:** if your org uses LF, you may also need LF data permissions/grants on those resources
+
+AthQL cannot query data your IAM user wouldn't be able to read in the AWS Athena console with the same profile.
+
+### Example least-privilege policy
+
+Scoped to one workgroup, Glue catalog metadata, and a dedicated Athena results bucket:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AthQLIdentity",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    },
+    {
+      "Sid": "AthQLGlueCatalogRead",
+      "Effect": "Allow",
+      "Action": [
+        "glue:GetCatalogs",
+        "glue:GetDatabases",
+        "glue:GetDatabase",
+        "glue:GetTables",
+        "glue:GetTable",
+        "glue:GetPartitions"
+      ],
+      "Resource": [
+        "arn:aws:glue:REGION:ACCOUNT_ID:catalog",
+        "arn:aws:glue:REGION:ACCOUNT_ID:database/*",
+        "arn:aws:glue:REGION:ACCOUNT_ID:table/*/*"
+      ]
+    },
+    {
+      "Sid": "AthQLAthenaWorkgroup",
+      "Effect": "Allow",
+      "Action": [
+        "athena:GetWorkGroup",
+        "athena:ListQueryExecutions",
+        "athena:GetQueryExecution",
+        "athena:StartQueryExecution",
+        "athena:StopQueryExecution",
+        "athena:GetQueryResults"
+      ],
+      "Resource": [
+        "arn:aws:athena:REGION:ACCOUNT_ID:workgroup/WORKGROUP",
+        "arn:aws:athena:REGION:ACCOUNT_ID:datacatalog/AwsDataCatalog"
+      ]
+    },
+    {
+      "Sid": "AthQLAthenaResultsBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::your-athena-results-bucket",
+        "arn:aws:s3:::your-athena-results-bucket/athena/queries/*"
+      ]
+    }
+  ]
+}
+```
+
+Add separate S3 statements for each **data** bucket your queries read from, or use your org's existing Athena/data-lake policies.
+
+### Managed policies (broader, easier to start)
+
+For development, many teams attach AWS managed policies instead of crafting least privilege:
+
+| Policy | Covers |
+|--------|--------|
+| `AmazonAthenaFullAccess` | Athena query APIs |
+| `AWSGlueConsoleFullAccess` or `AmazonGlueConsoleFullAccess` | Glue catalog browsing |
+| Custom S3 policy on results + data buckets | Query output and table data |
+
+These are wider than AthQL strictly needs — prefer the scoped example above for production-like setups.
 
 ## Configuration (do this first)
 
@@ -52,6 +162,7 @@ export ATHQL_ATHENA_WORKGROUP=primary       # your workgroup name
 | `ATHQL_S3_STAGING_DIR` | No | — | PyAthena staging directory (rarely needed) |
 | `ATHQL_PREVIEW_ROW_LIMIT` | No | `200` | Max rows in the UI preview grid |
 | `ATHQL_METADATA_CACHE_TTL_SECONDS` | No | `900` | Glue catalog cache TTL (15 min) |
+| `ATHQL_DEBUG` | No | `false` | Verbose backend logs with AWS error codes and stack traces |
 
 `config/athql.env` is **gitignored**. Never commit it.
 
@@ -80,6 +191,16 @@ aws athena list-work-groups --profile "$ATHQL_AWS_PROFILE" --region "$ATHQL_AWS_
 ```
 
 After starting AthQL, open the app → **Catalog** tab. The header shows `profile · region`. Warnings appear there if Athena output location could not be resolved.
+
+### 4. Debug logging (optional)
+
+When troubleshooting IAM or AWS API issues, enable verbose backend logging:
+
+```bash
+export ATHQL_DEBUG=1
+```
+
+Restart the backend. Failed AWS calls log the operation name, error code, message, and stack trace in the `./scripts/dev.sh` terminal. API responses also include clearer messages (e.g. **403** for access denied instead of a generic **500**).
 
 ### Example config
 
@@ -160,6 +281,7 @@ Keyboard shortcuts:
 | No output location | Set `ATHQL_ATHENA_OUTPUT_LOCATION` or run one query in the AWS Athena console first |
 | Wrong account / region in UI | Edit `config/athql.env`, restart `./scripts/dev.sh` |
 | Config ignored | Ensure `config/athql.env` exists and `dev.sh` prints `Loaded config from config/athql.env` |
+| Permission / access denied (403) | API returns a clear IAM message; set `ATHQL_DEBUG=1` for full AWS error codes in backend logs |
 
 ## Features
 

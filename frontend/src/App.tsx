@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { api } from "./api/client";
 import { Logo } from "./components/Logo";
+import { QueryTabLabel } from "./components/QueryTabLabel";
 import { ResultsGrid } from "./components/ResultsGrid";
 import { SaveQueryModal } from "./components/SaveQueryModal";
 import { Sidebar } from "./components/Sidebar";
@@ -224,6 +225,7 @@ export default function App() {
     updateTab(activeKey, {
       sql: query.sql,
       name: query.title,
+      label: query.title ?? tabs.find((t) => t.key === activeKey)?.label ?? "q1",
       database: query.database,
       catalog: query.catalog,
       updateSavedQueryId: query.savedQueryId,
@@ -281,7 +283,12 @@ export default function App() {
           addIcon={<PlusOutlined />}
           items={tabs.map((tab) => ({
             key: tab.key,
-            label: <span className="athql-tab-chip">{tab.label}</span>,
+            label: (
+              <QueryTabLabel
+                label={tab.label}
+                onRename={(label) => updateTab(tab.key, { label })}
+              />
+            ),
             children: (
               <QueryPanel
                 tab={tab}
@@ -312,6 +319,7 @@ export default function App() {
           onSaved={(saved) =>
             updateTab(activeKey, {
               name: saved.name,
+              label: saved.name,
               updateSavedQueryId: saved.id === activeTab.updateSavedQueryId ? saved.id : undefined,
             })
           }
