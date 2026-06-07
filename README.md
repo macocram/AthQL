@@ -38,8 +38,8 @@ cp config/athql.env.example config/athql.env
 Edit `config/athql.env` and set at least these three values:
 
 ```bash
-export ATHQL_AWS_PROFILE=your-aws-profile   # e.g. dataops
-export ATHQL_AWS_REGION=ap-south-1          # must match Athena / Glue region
+export ATHQL_AWS_PROFILE=your-aws-profile   # e.g. my-company-dev
+export ATHQL_AWS_REGION=your-aws-region     # e.g. us-east-1 or ap-south-1
 export ATHQL_ATHENA_WORKGROUP=primary       # your workgroup name
 ```
 
@@ -81,15 +81,15 @@ aws athena list-work-groups --profile "$ATHQL_AWS_PROFILE" --region "$ATHQL_AWS_
 
 After starting AthQL, open the app → **Catalog** tab. The header shows `profile · region`. Warnings appear there if Athena output location could not be resolved.
 
-### Example: ap-south-1 with profile `dataops`
+### Example config
 
 ```bash
 # config/athql.env
-export ATHQL_AWS_PROFILE=dataops
-export ATHQL_AWS_REGION=ap-south-1
+export ATHQL_AWS_PROFILE=your-aws-profile
+export ATHQL_AWS_REGION=your-aws-region
 export ATHQL_ATHENA_WORKGROUP=primary
 # output location usually auto-detected; uncomment only if needed:
-# export ATHQL_ATHENA_OUTPUT_LOCATION=s3://dataops.athena/athena/queries/
+# export ATHQL_ATHENA_OUTPUT_LOCATION=s3://your-bucket/athena/queries/
 ```
 
 ## Quick start

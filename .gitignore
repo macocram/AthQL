@@ -220,5 +220,6 @@ __marimo__/
 
 # Node
 node_modules/
+.playwright-browsers/
 dist/
 frontend/dist/
