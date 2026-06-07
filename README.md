@@ -2,6 +2,8 @@
 
 A local-first Amazon Athena query manager for developers. Runs on your machine using `~/.aws/credentials`, reads settings from `config/athql.env`, and stores saved queries and history in `~/.athql/metadata.db`.
 
+**Website:** [amit3200.github.io/AthQL](https://amit3200.github.io/AthQL/) · **Repo:** [github.com/Amit3200/AthQL](https://github.com/Amit3200/AthQL)
+
 ## Screenshots
 
 ### Workspace & catalog
@@ -326,7 +328,9 @@ AthQL/
 │   ├── athql.env.example      Template — copy to athql.env
 │   └── athql.env              Your local settings (gitignored)
 ├── docs/
-│   └── screenshots/           README screenshots
+│   ├── index.html             GitHub Pages landing site
+│   ├── assets/                Site CSS, JS, favicon
+│   └── screenshots/           README & site screenshots
 ├── backend/
 │   ├── app/
 │   │   ├── main.py            FastAPI entrypoint
@@ -343,3 +347,21 @@ AthQL/
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## GitHub Pages
+
+The project site lives in [`docs/`](docs/) and is designed for [GitHub Pages](https://pages.github.com/):
+
+1. Open **Settings → Pages** on the repo
+2. Set **Source** to **Deploy from a branch**
+3. Choose branch **`main`** and folder **`/docs`**
+4. Save — the site publishes at `https://amit3200.github.io/AthQL/`
+
+The landing page pulls live **stars, forks, open issues, and last push** from the GitHub API. AthQL is clone-and-run (not published to PyPI/npm yet), so there is no package download counter — the site is honest about that.
+
+To preview locally:
+
+```bash
+cd docs && python3 -m http.server 8080
+# open http://localhost:8080
+```
