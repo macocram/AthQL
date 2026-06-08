@@ -4,7 +4,7 @@ A local-first Amazon Athena query manager for developers. Runs on your machine u
 
 - **Website:** [amit3200.github.io/AthQL](https://amit3200.github.io/AthQL/)
 - **Repo:** [github.com/Amit3200/AthQL](https://github.com/Amit3200/AthQL)
-- **Version:** `1.1.0` — [CHANGELOG](CHANGELOG.md) · [Releases](https://github.com/Amit3200/AthQL/releases)
+- **Version:** `1.1.1` — [CHANGELOG](CHANGELOG.md) · [Releases](https://github.com/Amit3200/AthQL/releases)
 
 [![Release](https://img.shields.io/github/v/release/Amit3200/AthQL?label=version)](https://github.com/Amit3200/AthQL/releases)
 
@@ -191,8 +191,39 @@ export ATHQL_ATHENA_WORKGROUP=primary       # your workgroup name
 | `ATHQL_PREVIEW_ROW_LIMIT` | No | `200` | Max rows in the UI preview grid |
 | `ATHQL_METADATA_CACHE_TTL_SECONDS` | No | `900` | Glue catalog cache TTL (15 min) |
 | `ATHQL_DEBUG` | No | `false` | Verbose backend logs with AWS error codes and stack traces |
+| `ATHQL_DEV_HOST` | No | — | Shorthand for one local dev hostname (e.g. `athql.local` → `http://athql.local:5173`) |
+| `ATHQL_DEV_ORIGINS` | No | — | Extra dev UI origins, comma-separated full URLs |
+| `ATHQL_DEV_PORT` | No | `5173` | Vite dev server port (must match origins) |
 
 `config/athql.env` is **gitignored**. Never commit it.
+
+### Custom local domain (optional)
+
+By default the dev UI only accepts `localhost` and `127.0.0.1`. If you use a **hosts-file domain** that points to `127.0.0.1`, add it to `config/athql.env`:
+
+```bash
+# /etc/hosts:  127.0.0.1  athql.local
+export ATHQL_DEV_HOST=athql.local
+```
+
+Then open `http://athql.local:5173` instead of `http://localhost:5173`. AthQL updates **Vite `allowedHosts`**, **HMR**, and **backend CORS** automatically. The API still binds to `127.0.0.1` — traffic never leaves your machine.
+
+**Important:** use **`http://`** (not `https://`) and include the **port** (`:5173` by default). Vite does not serve on port 80/443 in dev.
+
+Verify your hosts entry resolves locally:
+
+```bash
+ping -c 1 athql.local   # should show 127.0.0.1
+```
+
+Multiple domains or a non-default port:
+
+```bash
+export ATHQL_DEV_ORIGINS=http://athql.local:5173,http://athql.test:5173
+# export ATHQL_DEV_PORT=5173
+```
+
+Restart `./scripts/dev.sh` after changing these values.
 
 ### 2. Optional: query output location
 

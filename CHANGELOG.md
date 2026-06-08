@@ -4,6 +4,22 @@ All notable changes to AthQL are documented here. Version numbers follow [SemVer
 
 Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.1] - 2026-06-08
+
+Custom local dev domain support for `/etc/hosts` setups.
+
+### Added
+
+- **`ATHQL_DEV_HOST`** and **`ATHQL_DEV_ORIGINS`** — allow dev UI on custom hostnames that resolve to `127.0.0.1` (e.g. `http://athql.local:5173`)
+- **`ATHQL_DEV_PORT`** — optional Vite port override
+- Dev startup prints custom UI URL when configured
+
+### Changed
+
+- Vite listens on all local interfaces when a custom dev host is set (fixes IPv4 `/etc/hosts` → `127.0.0.1` access)
+- HMR and `server.origin` configured for custom hostnames
+- Backend CORS reads allowed origins from settings instead of hardcoded localhost list
+
 ## [1.1.0] - 2026-06-08
 
 UI polish and saved-query organization improvements.
@@ -45,5 +61,6 @@ First stable release — local-first Athena query manager ready for daily use.
 - Structured AWS error handling and opt-in debug logging (`ATHQL_DEBUG=1`)
 - GitHub Pages site and README documentation
 
+[1.1.1]: https://github.com/Amit3200/AthQL/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Amit3200/AthQL/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Amit3200/AthQL/releases/tag/v1.0.0

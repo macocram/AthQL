@@ -17,6 +17,28 @@ class Settings(BaseSettings):
     preview_row_limit: int = 200
     metadata_cache_ttl_seconds: int = 900
     debug: bool = False
+    dev_port: int = 5173
+    dev_host: Optional[str] = None
+    dev_origins: Optional[str] = None
+
+    def cors_origins(self) -> list[str]:
+        """Browser origins allowed for the Vite dev UI (localhost + optional custom domains)."""
+        defaults = [
+            f"http://localhost:{self.dev_port}",
+            f"http://127.0.0.1:{self.dev_port}",
+        ]
+        extra: list[str] = []
+        if self.dev_host:
+            extra.append(f"http://{self.dev_host.strip()}:{self.dev_port}")
+        if self.dev_origins:
+            extra.extend(part.strip() for part in self.dev_origins.split(",") if part.strip())
+        seen: set[str] = set()
+        merged: list[str] = []
+        for origin in defaults + extra:
+            if origin not in seen:
+                seen.add(origin)
+                merged.append(origin)
+        return merged
 
     @property
     def data_dir(self) -> Path:
