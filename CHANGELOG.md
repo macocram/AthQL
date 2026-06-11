@@ -4,6 +4,24 @@ All notable changes to AthQL are documented here. Version numbers follow [SemVer
 
 Format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.2] - 2026-06-08
+
+Restore past query results from S3 and inspect complex row data as JSON.
+
+### Added
+
+- **Result persistence** — store Athena `output_location` (S3 path) on successful runs in query history
+- **Restore last results** — load prior results from **History** or **Saved queries** without re-running SQL
+- **Saved query last result** — link latest successful run + S3 path when executing from a saved query tab
+- **S3 fallback APIs** — fetch preview rows and download URLs by stored `s3://` path when execution IDs expire
+- **Row JSON viewer** — `{}` button on each result row opens a modal with expandable **Tree** and **Raw** JSON views
+- **Nested JSON parsing** — string fields containing JSON objects/arrays are parsed for drill-down in the viewer
+- **Copy JSON toast** — confirmation when row JSON is copied to clipboard
+
+### Fixed
+
+- Results grid scroll height now accounts for table header and horizontal scrollbar (last row no longer clipped)
+
 ## [1.1.1] - 2026-06-08
 
 Custom local dev domain support for `/etc/hosts` setups.
@@ -61,6 +79,7 @@ First stable release — local-first Athena query manager ready for daily use.
 - Structured AWS error handling and opt-in debug logging (`ATHQL_DEBUG=1`)
 - GitHub Pages site and README documentation
 
+[1.1.2]: https://github.com/Amit3200/AthQL/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Amit3200/AthQL/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Amit3200/AthQL/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Amit3200/AthQL/releases/tag/v1.0.0

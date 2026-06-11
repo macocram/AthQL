@@ -47,15 +47,23 @@ export const api = {
     request<{ name: string; type: string; partition?: string }[]>(
       `/metadata/catalogs/${catalog}/databases/${database}/tables/${table}/columns`,
     ),
-  execute: (sql: string, database?: string, catalog?: string) =>
+  execute: (sql: string, database?: string, catalog?: string, savedQueryId?: string) =>
     request<{ execution_id: string }>("/queries/execute", {
       method: "POST",
-      body: JSON.stringify({ sql, database, catalog }),
+      body: JSON.stringify({ sql, database, catalog, saved_query_id: savedQueryId }),
     }),
   status: (executionId: string) => request<QueryStatus>(`/queries/${executionId}/status`),
   results: (executionId: string, limit = 200) =>
     request<QueryResult>(`/queries/${executionId}/results?limit=${limit}`),
+  resultsByOutputLocation: (location: string, limit = 200) =>
+    request<QueryResult>(
+      `/queries/results/by-output-location?location=${encodeURIComponent(location)}&limit=${limit}`,
+    ),
   downloadUrl: (executionId: string) => request<{ url: string }>(`/queries/${executionId}/download-url`),
+  downloadUrlByOutputLocation: (location: string) =>
+    request<{ url: string }>(
+      `/queries/download-url/by-output-location?location=${encodeURIComponent(location)}`,
+    ),
   cancel: (executionId: string) =>
     request<{ status: string }>(`/queries/${executionId}/cancel`, { method: "POST" }),
   format: (sql: string) => request<{ sql: string }>("/queries/format", { method: "POST", body: JSON.stringify({ sql }) }),

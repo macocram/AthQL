@@ -66,9 +66,13 @@ function QueryPanel({
   addColumns: ReturnType<typeof useSqlCompletions>["addColumns"];
 }) {
   const { message } = useNotify();
+  const queryClient = useQueryClient();
   const formatRef = useRef<(() => void) | null>(null);
   const { editorTheme, setEditorTheme } = useTheme();
-  const { status, isPolling, processed, isLoadingResults } = useQueryExecution(tab.executionId);
+  const { status, isPolling, processed, isLoadingResults } = useQueryExecution(tab.executionId, {
+    outputLocation: tab.outputLocation,
+    restoredStatus: tab.restoredStatus,
+  });
   const [resultsHeight, setResultsHeight] = useState(42);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -103,6 +107,12 @@ function QueryPanel({
     };
   }, [isDragging]);
 
+  useEffect(() => {
+    if (status?.status === "SUCCEEDED" && tab.updateSavedQueryId) {
+      queryClient.invalidateQueries({ queryKey: ["saved-queries"] });
+    }
+  }, [status?.status, tab.updateSavedQueryId, queryClient]);
+
   const catalogsQuery = useQuery({
     queryKey: ["catalogs"],
     queryFn: api.catalogs,
@@ -119,14 +129,23 @@ function QueryPanel({
   const runQuery = useCallback(async () => {
     if (isPolling) return;
     try {
-      const { execution_id } = await api.execute(tab.sql, tab.database, tab.catalog);
-      onUpdate({ executionId: execution_id });
+      const { execution_id } = await api.execute(
+        tab.sql,
+        tab.database,
+        tab.catalog,
+        tab.updateSavedQueryId,
+      );
+      onUpdate({
+        executionId: execution_id,
+        outputLocation: undefined,
+        restoredStatus: undefined,
+      });
       onExecuted?.();
       message.success("Query submitted");
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Execution failed");
     }
-  }, [isPolling, tab.sql, tab.database, tab.catalog, onUpdate, onExecuted, message]);
+  }, [isPolling, tab.sql, tab.database, tab.catalog, tab.updateSavedQueryId, onUpdate, onExecuted, message]);
 
   const cancelQuery = async () => {
     if (!tab.executionId) return;
@@ -228,6 +247,7 @@ function QueryPanel({
           processed={processed}
           isLoading={isLoadingResults}
           executionId={tab.executionId}
+          outputLocation={tab.outputLocation}
         />
       </div>
     </div>
@@ -287,9 +307,11 @@ export default function App() {
       database: query.database,
       catalog: query.catalog,
       updateSavedQueryId: query.savedQueryId,
-      executionId: undefined,
+      executionId: query.executionId,
+      outputLocation: query.outputLocation,
+      restoredStatus: query.restoredStatus,
     });
-    message.success("Query loaded");
+    message.success(query.restoredStatus?.status === "SUCCEEDED" ? "Query and last results loaded" : "Query loaded");
   };
 
   const openSaveModal = () => {

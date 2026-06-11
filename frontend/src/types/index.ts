@@ -28,6 +28,11 @@ export interface QueryTab {
   database?: string;
   catalog?: string;
   executionId?: string;
+  outputLocation?: string;
+  restoredStatus?: Pick<
+    QueryStatus,
+    "status" | "data_scanned_bytes" | "execution_time_ms" | "error_message" | "cost_usd"
+  >;
   /** Set only when a saved query was loaded from the sidebar — enables update-in-place on save. */
   updateSavedQueryId?: string;
 }
@@ -49,6 +54,7 @@ export interface HistoryEntry {
   data_scanned_bytes?: number;
   execution_time_ms?: number;
   error_message?: string;
+  output_location?: string | null;
   executed_at: string;
 }
 
@@ -60,6 +66,11 @@ export interface SavedQuery {
   database_context: string | null;
   catalog_context: string | null;
   tags: string[];
+  last_execution_id?: string | null;
+  last_output_location?: string | null;
+  last_data_scanned_bytes?: number | null;
+  last_execution_time_ms?: number | null;
+  last_result_at?: string | null;
   updated_at: string;
 }
 
@@ -76,6 +87,9 @@ export interface LoadedQuery {
   database?: string;
   catalog?: string;
   savedQueryId?: string;
+  executionId?: string;
+  outputLocation?: string;
+  restoredStatus?: QueryTab["restoredStatus"];
 }
 
 export interface SqlCompletionContext {

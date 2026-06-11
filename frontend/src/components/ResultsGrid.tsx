@@ -1,9 +1,10 @@
 import { DownloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Empty, Table, Typography } from "antd";
+import { Alert, Button, Empty, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "../api/client";
+import { RowJsonModal } from "./RowJsonModal";
 import type { ProcessedResult } from "../workers/resultProcessor.worker";
 import type { QueryStatus } from "../types";
 
@@ -12,6 +13,7 @@ interface ResultsGridProps {
   processed: ProcessedResult | null;
   isLoading: boolean;
   executionId?: string;
+  outputLocation?: string;
 }
 
 function formatBytes(bytes?: number): string {
@@ -21,43 +23,102 @@ function formatBytes(bytes?: number): string {
   return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
 }
 
-export function ResultsGrid({ status, processed, isLoading, executionId }: ResultsGridProps) {
+export function ResultsGrid({ status, processed, isLoading, executionId, outputLocation }: ResultsGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
+  const tableWrapRef = useRef<HTMLDivElement>(null);
   const [scrollY, setScrollY] = useState(240);
+  const [jsonRow, setJsonRow] = useState<{ row: Record<string, unknown>; index: number } | null>(null);
 
   useLayoutEffect(() => {
-    const node = gridRef.current;
-    if (!node) return;
+    const wrap = tableWrapRef.current;
+    const grid = gridRef.current;
+    if (!wrap || !grid) return;
 
     const updateScrollHeight = () => {
-      const toolbar = node.querySelector(".athql-results-toolbar");
-      const toolbarHeight = toolbar?.getBoundingClientRect().height ?? 0;
-      setScrollY(Math.max(120, node.clientHeight - toolbarHeight));
+      const thead = wrap.querySelector(".ant-table-thead");
+      const headerHeight = thead?.getBoundingClientRect().height ?? 39;
+      const body = wrap.querySelector(".ant-table-body") as HTMLElement | null;
+      const horizontalScrollbar =
+        body && body.scrollWidth > body.clientWidth
+          ? body.offsetHeight - body.clientHeight
+          : 0;
+      // scroll.y is body-only; header + optional x-scrollbar sit outside that height
+      const next = Math.floor(wrap.clientHeight - headerHeight - horizontalScrollbar - 1);
+      setScrollY(Math.max(80, next));
     };
 
     updateScrollHeight();
+    const raf = requestAnimationFrame(updateScrollHeight);
+
     const observer = new ResizeObserver(updateScrollHeight);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [status?.status, processed?.dataSource.length, isLoading]);
+    observer.observe(wrap);
+    observer.observe(grid);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
+  }, [status?.status, processed?.dataSource.length, isLoading, processed?.columns.length]);
 
   const columns: ColumnsType<Record<string, unknown>> = useMemo(() => {
     if (!processed) return [];
-    return processed.columns.map((col) => ({
+
+    const jsonColumn: ColumnsType<Record<string, unknown>>[number] = {
+      title: "",
+      key: "__json",
+      width: 44,
+      fixed: "left",
+      className: "athql-results-json-col",
+      render: (_value, record, index) => (
+        <Tooltip title="View row as JSON">
+          <button
+            type="button"
+            className="athql-row-json-btn"
+            aria-label={`View row ${index + 1} as JSON`}
+            onClick={(event) => {
+              event.stopPropagation();
+              setJsonRow({ row: record, index });
+            }}
+          >
+            {"{}"}
+          </button>
+        </Tooltip>
+      ),
+    };
+
+    const dataColumns = processed.columns.map((col) => ({
       title: col.name,
       dataIndex: col.name,
       key: col.name,
       width: 160,
       ellipsis: true,
       align: ["integer", "number", "decimal"].includes(col.type) ? ("right" as const) : ("left" as const),
-      render: (value: unknown) => (value == null ? <Typography.Text type="secondary">NULL</Typography.Text> : String(value)),
+      render: (value: unknown) =>
+        value == null ? <Typography.Text type="secondary">NULL</Typography.Text> : String(value),
     }));
+
+    return [jsonColumn, ...dataColumns];
   }, [processed]);
 
   const handleDownload = async () => {
-    if (!executionId) return;
-    const { url } = await api.downloadUrl(executionId);
-    window.open(url, "_blank");
+    try {
+      if (executionId) {
+        const { url } = await api.downloadUrl(executionId);
+        window.open(url, "_blank");
+        return;
+      }
+      if (outputLocation) {
+        const { url } = await api.downloadUrlByOutputLocation(outputLocation);
+        window.open(url, "_blank");
+      }
+    } catch (err) {
+      if (outputLocation) {
+        const { url } = await api.downloadUrlByOutputLocation(outputLocation);
+        window.open(url, "_blank");
+        return;
+      }
+      throw err;
+    }
   };
 
   if (status?.status === "FAILED") {
@@ -107,7 +168,7 @@ export function ResultsGrid({ status, processed, isLoading, executionId }: Resul
             {status.execution_time_ms != null ? `${(status.execution_time_ms / 1000).toFixed(2)}s` : "—"} ·{" "}
             {status.cost_usd != null ? `$${status.cost_usd.toFixed(4)}` : "—"}
           </Typography.Text>
-          {executionId && (
+          {(executionId || outputLocation) && (
             <Button size="small" icon={<DownloadOutlined />} onClick={handleDownload}>
               Download full CSV
             </Button>
@@ -115,7 +176,7 @@ export function ResultsGrid({ status, processed, isLoading, executionId }: Resul
         </div>
       )}
 
-      <div className="athql-results-table-wrap">
+      <div ref={tableWrapRef} className="athql-results-table-wrap">
         <Table
           size="small"
           loading={isLoading}
@@ -124,8 +185,16 @@ export function ResultsGrid({ status, processed, isLoading, executionId }: Resul
           rowKey="__rowKey"
           pagination={false}
           scroll={{ x: "max-content", y: scrollY }}
+          tableLayout="fixed"
         />
       </div>
+
+      <RowJsonModal
+        open={jsonRow != null}
+        row={jsonRow?.row ?? null}
+        rowIndex={jsonRow?.index}
+        onClose={() => setJsonRow(null)}
+      />
     </div>
   );
 }

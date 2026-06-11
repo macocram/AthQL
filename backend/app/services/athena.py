@@ -103,15 +103,26 @@ def _fetch_preview_from_s3(execution_id: str, limit: int) -> dict[str, Any]:
     output_location = status.get("output_location")
     if not output_location:
         raise ValueError("Query output location unavailable")
+    return fetch_preview_from_output_location(output_location, limit)
 
+
+def _parse_s3_location(output_location: str) -> tuple[str, str]:
     parsed = urlparse(output_location)
     bucket = parsed.netloc
     key = parsed.path.lstrip("/")
+    if not bucket or not key:
+        raise ValueError(f"Invalid S3 output location: {output_location}")
+    return bucket, key
+
+
+def fetch_preview_from_output_location(output_location: str, limit: int | None = None) -> dict[str, Any]:
+    limit = limit or settings.preview_row_limit
+    bucket, key = _parse_s3_location(output_location)
 
     s3 = get_s3_client()
     obj = s3.get_object(Bucket=bucket, Key=key)
     body = obj["Body"].read().decode("utf-8")
-    
+
     reader = csv.reader(io.StringIO(body))
     try:
         headers = next(reader)
@@ -130,21 +141,22 @@ def _fetch_preview_from_s3(execution_id: str, limit: int) -> dict[str, Any]:
     return {"columns": columns, "rows": rows, "row_count": len(rows)}
 
 
-def generate_download_url(execution_id: str, expires_in: int = 3600) -> str:
-    status = get_query_status(execution_id)
-    output_location = status.get("output_location")
-    if not output_location:
-        raise ValueError("Query has no output yet")
-
-    parsed = urlparse(output_location)
-    bucket = parsed.netloc
-    key = parsed.path.lstrip("/")
+def generate_download_url_for_output_location(output_location: str, expires_in: int = 3600) -> str:
+    bucket, key = _parse_s3_location(output_location)
     s3 = get_s3_client()
     return s3.generate_presigned_url(
         "get_object",
         Params={"Bucket": bucket, "Key": key},
         ExpiresIn=expires_in,
     )
+
+
+def generate_download_url(execution_id: str, expires_in: int = 3600) -> str:
+    status = get_query_status(execution_id)
+    output_location = status.get("output_location")
+    if not output_location:
+        raise ValueError("Query has no output yet")
+    return generate_download_url_for_output_location(output_location, expires_in=expires_in)
 
 
 def cancel_query(execution_id: str) -> None:

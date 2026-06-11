@@ -14,6 +14,7 @@ import { useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useNotify } from "../hooks/useNotify";
 import type { Folder, LoadedQuery, SavedQuery } from "../types";
+import { loadedQueryFromSaved } from "../utils/loadedQuery";
 
 interface SavedQueriesPanelProps {
   onLoadQuery: (query: LoadedQuery) => void;
@@ -132,13 +133,7 @@ export function SavedQueriesPanel({ onLoadQuery }: SavedQueriesPanelProps) {
   };
 
   const loadQuery = (item: SavedQuery) => {
-    onLoadQuery({
-      sql: item.sql_text,
-      title: item.name,
-      database: item.database_context ?? undefined,
-      catalog: item.catalog_context ?? undefined,
-      savedQueryId: item.id,
-    });
+    onLoadQuery(loadedQueryFromSaved(item));
   };
 
   if (foldersQuery.isLoading || savedQuery.isLoading) {

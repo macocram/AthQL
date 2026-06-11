@@ -992,6 +992,156 @@ body,
   height: 100%;
 }
 
+.athql-results-table-wrap .ant-table-body {
+  overflow: auto !important;
+}
+
+.athql-results-json-col {
+  padding: 0 !important;
+}
+
+.athql-row-json-btn {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  margin: 0 auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--athql-accent);
+  border-radius: var(--athql-radius);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.athql-row-json-btn:hover,
+.athql-row-json-btn:focus-visible {
+  background: var(--athql-tag-bg);
+  border-color: var(--athql-tag-border);
+}
+
+.athql-row-json-modal .ant-modal-body {
+  padding-top: 12px;
+}
+
+.athql-row-json-modal-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 28px;
+}
+
+.athql-json-viewer {
+  max-height: min(72vh, 640px);
+  overflow: auto;
+  padding: 12px;
+  border-radius: var(--athql-radius);
+  background: var(--athql-surface-subtle);
+  border: 1px solid var(--athql-border-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.athql-json-raw {
+  max-height: min(72vh, 640px);
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--athql-radius);
+  background: var(--athql-surface-subtle);
+  border: 1px solid var(--athql-border-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.athql-json-node {
+  display: block;
+}
+
+.athql-json-toggle {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  width: 100%;
+  cursor: pointer;
+  padding: 1px 0;
+  border-radius: 3px;
+}
+
+.athql-json-toggle:hover {
+  background: var(--athql-hover);
+}
+
+.athql-json-leaf {
+  padding: 1px 0;
+  word-break: break-word;
+}
+
+.athql-json-chevron {
+  width: 12px;
+  color: var(--athql-text-muted);
+  flex-shrink: 0;
+}
+
+.athql-json-key {
+  color: var(--athql-accent);
+  font-weight: 600;
+}
+
+.athql-json-bracket {
+  color: var(--athql-text-muted);
+}
+
+.athql-json-preview {
+  color: var(--athql-text-faint);
+  font-style: italic;
+}
+
+.athql-json-value {
+  color: var(--athql-text-strong);
+}
+
+.athql-json-value--string {
+  color: #22c55e;
+}
+
+[data-theme="dark"] .athql-json-value--string {
+  color: #86efac;
+}
+
+.athql-json-value--number {
+  color: #3b82f6;
+}
+
+[data-theme="dark"] .athql-json-value--number {
+  color: #93c5fd;
+}
+
+.athql-json-value--boolean {
+  color: #f59e0b;
+}
+
+.athql-json-value--null {
+  color: var(--athql-text-faint);
+  font-style: italic;
+}
+
+.athql-json-close {
+  padding-top: 1px;
+}
+
 .athql-result-alert,
 .athql-sidebar-alert {
   margin: 12px;

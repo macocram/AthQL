@@ -53,6 +53,19 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "sort_order" not in folder_columns:
         conn.execute("ALTER TABLE folders ADD COLUMN sort_order INTEGER DEFAULT 0")
 
+    history_columns = {row[1] for row in conn.execute("PRAGMA table_info(query_history)")}
+    if "output_location" not in history_columns:
+        conn.execute("ALTER TABLE query_history ADD COLUMN output_location TEXT")
+    if "saved_query_id" not in history_columns:
+        conn.execute("ALTER TABLE query_history ADD COLUMN saved_query_id TEXT REFERENCES saved_queries(id) ON DELETE SET NULL")
+
+    if "last_execution_id" not in saved_columns:
+        conn.execute("ALTER TABLE saved_queries ADD COLUMN last_execution_id TEXT")
+        conn.execute("ALTER TABLE saved_queries ADD COLUMN last_output_location TEXT")
+        conn.execute("ALTER TABLE saved_queries ADD COLUMN last_data_scanned_bytes INTEGER")
+        conn.execute("ALTER TABLE saved_queries ADD COLUMN last_execution_time_ms INTEGER")
+        conn.execute("ALTER TABLE saved_queries ADD COLUMN last_result_at TIMESTAMP")
+
 
 def init_db() -> None:
     ensure_data_dir()

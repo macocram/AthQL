@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 import { api } from "../api/client";
 import type { HistoryEntry, LoadedQuery } from "../types";
+import { loadedQueryFromHistory } from "../utils/loadedQuery";
 
 interface QueryHistoryPanelProps {
   onLoadQuery: (query: LoadedQuery) => void;
@@ -54,7 +55,11 @@ export function QueryHistoryPanel({ onLoadQuery }: QueryHistoryPanelProps) {
       ) : (
         <div className="athql-history-list">
           {items.map((item) => (
-            <HistoryCard key={item.id} item={item} onLoad={() => onLoadQuery({ sql: item.sql_text })} />
+            <HistoryCard
+              key={item.id}
+              item={item}
+              onLoad={() => onLoadQuery(loadedQueryFromHistory(item))}
+            />
           ))}
         </div>
       )}

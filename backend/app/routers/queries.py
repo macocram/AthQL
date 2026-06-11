@@ -18,6 +18,7 @@ class ExecuteRequest(BaseModel):
     sql: str = Field(min_length=1)
     database: str | None = None
     catalog: str | None = None
+    saved_query_id: str | None = None
 
 
 class ExecuteResponse(BaseModel):
@@ -39,6 +40,7 @@ class HistoryEntry(BaseModel):
     data_scanned_bytes: int | None
     execution_time_ms: int | None
     error_message: str | None
+    output_location: str | None = None
     executed_at: str
 
 
@@ -50,6 +52,11 @@ class SavedQuery(BaseModel):
     database_context: str | None
     catalog_context: str | None
     tags: list[str] = []
+    last_execution_id: str | None = None
+    last_output_location: str | None = None
+    last_data_scanned_bytes: int | None = None
+    last_execution_time_ms: int | None = None
+    last_result_at: str | None = None
     updated_at: str
 
 
@@ -96,6 +103,42 @@ def _row_to_saved_query(row: sqlite3.Row) -> SavedQuery:
     return SavedQuery(**data)
 
 
+def _history_output_location(conn: sqlite3.Connection, execution_id: str) -> str | None:
+    row = conn.execute(
+        "SELECT output_location FROM query_history WHERE id = ?",
+        (execution_id,),
+    ).fetchone()
+    return row["output_location"] if row else None
+
+
+def _update_saved_query_last_result(
+    conn: sqlite3.Connection,
+    *,
+    saved_query_id: str,
+    execution_id: str,
+    output_location: str,
+    data_scanned_bytes: int | None,
+    execution_time_ms: int | None,
+) -> None:
+    now = datetime.utcnow().isoformat()
+    conn.execute(
+        """
+        UPDATE saved_queries
+        SET last_execution_id = ?, last_output_location = ?, last_data_scanned_bytes = ?,
+            last_execution_time_ms = ?, last_result_at = ?
+        WHERE id = ?
+        """,
+        (
+            execution_id,
+            output_location,
+            data_scanned_bytes,
+            execution_time_ms,
+            now,
+            saved_query_id,
+        ),
+    )
+
+
 def _resolve_folder_id(conn, folder_id: str | None, folder_name: str | None) -> str | None:
     if folder_id:
         return folder_id
@@ -124,10 +167,10 @@ def execute_query(body: ExecuteRequest):
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO query_history (id, sql_text, status)
-            VALUES (?, ?, 'QUEUED')
+            INSERT INTO query_history (id, sql_text, status, saved_query_id)
+            VALUES (?, ?, 'QUEUED', ?)
             """,
-            (execution_id, body.sql),
+            (execution_id, body.sql, body.saved_query_id),
         )
         conn.commit()
 
@@ -148,7 +191,7 @@ def list_history(limit: int = 50):
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, sql_text, status, data_scanned_bytes, execution_time_ms, error_message, executed_at
+            SELECT id, sql_text, status, data_scanned_bytes, execution_time_ms, error_message, output_location, executed_at
             FROM query_history
             ORDER BY executed_at DESC
             LIMIT ?
@@ -164,6 +207,7 @@ def list_history(limit: int = 50):
             data_scanned_bytes=row["data_scanned_bytes"],
             execution_time_ms=row["execution_time_ms"],
             error_message=row["error_message"],
+            output_location=row["output_location"],
             executed_at=row["executed_at"],
         )
         for row in rows
@@ -175,7 +219,9 @@ def list_saved_queries(tag: str | None = None, q: str | None = None):
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, folder_id, name, sql_text, database_context, catalog_context, tags, updated_at
+            SELECT id, folder_id, name, sql_text, database_context, catalog_context, tags,
+                   last_execution_id, last_output_location, last_data_scanned_bytes,
+                   last_execution_time_ms, last_result_at, updated_at
             FROM saved_queries
             ORDER BY updated_at DESC
             """
@@ -257,7 +303,9 @@ def update_saved_query(query_id: str, body: SavedQueryUpdate):
     with get_connection() as conn:
         existing = conn.execute(
             """
-            SELECT id, folder_id, name, sql_text, database_context, catalog_context, tags, updated_at
+            SELECT id, folder_id, name, sql_text, database_context, catalog_context, tags,
+                   last_execution_id, last_output_location, last_data_scanned_bytes,
+                   last_execution_time_ms, last_result_at, updated_at
             FROM saved_queries WHERE id = ?
             """,
             (query_id,),
@@ -341,15 +389,38 @@ def reorder_folders(body: ReorderFoldersRequest):
     return {"status": "ok"}
 
 
+@router.get("/results/by-output-location")
+def results_by_output_location(location: str, limit: int = 200):
+    if not location.startswith("s3://"):
+        raise HTTPException(status_code=400, detail="location must be an s3:// URI")
+    try:
+        return athena_service.fetch_preview_from_output_location(location, limit=limit)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/download-url/by-output-location")
+def download_url_by_output_location(location: str):
+    if not location.startswith("s3://"):
+        raise HTTPException(status_code=400, detail="location must be an s3:// URI")
+    try:
+        url = athena_service.generate_download_url_for_output_location(location)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"url": url}
+
+
 @router.get("/{execution_id}/status")
 def query_status(execution_id: str):
     status = athena_service.get_query_status(execution_id)
+    output_location = status.get("output_location")
 
     with get_connection() as conn:
         conn.execute(
             """
             UPDATE query_history
-            SET status = ?, data_scanned_bytes = ?, execution_time_ms = ?, error_message = ?
+            SET status = ?, data_scanned_bytes = ?, execution_time_ms = ?, error_message = ?,
+                output_location = COALESCE(?, output_location)
             WHERE id = ?
             """,
             (
@@ -357,9 +428,24 @@ def query_status(execution_id: str):
                 status.get("data_scanned_bytes"),
                 status.get("execution_time_ms"),
                 status.get("error_message"),
+                output_location,
                 execution_id,
             ),
         )
+        if status["status"] == "SUCCEEDED" and output_location:
+            row = conn.execute(
+                "SELECT saved_query_id FROM query_history WHERE id = ?",
+                (execution_id,),
+            ).fetchone()
+            if row and row["saved_query_id"]:
+                _update_saved_query_last_result(
+                    conn,
+                    saved_query_id=row["saved_query_id"],
+                    execution_id=execution_id,
+                    output_location=output_location,
+                    data_scanned_bytes=status.get("data_scanned_bytes"),
+                    execution_time_ms=status.get("execution_time_ms"),
+                )
         conn.commit()
 
     return status
@@ -367,16 +453,37 @@ def query_status(execution_id: str):
 
 @router.get("/{execution_id}/results")
 def query_results(execution_id: str, limit: int = 200):
-    status = athena_service.get_query_status(execution_id)
-    if status["status"] != "SUCCEEDED":
-        raise HTTPException(status_code=400, detail=f"Query not ready: {status['status']}")
+    with get_connection() as conn:
+        stored = conn.execute(
+            "SELECT status, output_location FROM query_history WHERE id = ?",
+            (execution_id,),
+        ).fetchone()
 
-    return athena_service.fetch_preview_rows(execution_id, limit=limit)
+    try:
+        status = athena_service.get_query_status(execution_id)
+        if status["status"] != "SUCCEEDED":
+            raise HTTPException(status_code=400, detail=f"Query not ready: {status['status']}")
+        return athena_service.fetch_preview_rows(execution_id, limit=limit)
+    except HTTPException:
+        raise
+    except Exception:
+        if stored and stored["status"] == "SUCCEEDED" and stored["output_location"]:
+            return athena_service.fetch_preview_from_output_location(stored["output_location"], limit=limit)
+        raise HTTPException(status_code=400, detail="Results unavailable for this query")
 
 
 @router.get("/{execution_id}/download-url")
 def download_url(execution_id: str):
-    url = athena_service.generate_download_url(execution_id)
+    with get_connection() as conn:
+        stored_location = _history_output_location(conn, execution_id)
+
+    try:
+        url = athena_service.generate_download_url(execution_id)
+    except Exception:
+        if stored_location:
+            url = athena_service.generate_download_url_for_output_location(stored_location)
+        else:
+            raise HTTPException(status_code=400, detail="Download unavailable for this query") from None
     return {"url": url}
 
 
